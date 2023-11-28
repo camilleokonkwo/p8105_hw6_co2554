@@ -42,7 +42,8 @@ set.seed(12345)
 ### Problem 2
 
 Downloading the Central Park weather data
-```{r}
+
+```{r weather}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -56,4 +57,31 @@ weather_df =
   select(name, id, everything())
 
 ```
+
+We'll be looking at the distributions of these two quantities estimated from the weather_df data: r^2 and log(β̂ 1∗β̂ 2). 
+
+Lets create a simple linear regression with `tmax` as the response and  `tmin` and `prcp` as predictors. 
+```{r model}
+model = lm(tmax ~ tmin + prcp, data = weather_df)
+
+r_squared =
+  model |> 
+  broom::glance() |> 
+  select(r.squared)
+
+coefficients =
+  model |> 
+  broom::tidy() |>
+  filter(term %in% c("tmin", "prcp")) |>
+  select(term, estimate) |>
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  ) |> 
+  mutate(
+    log_coefficient = log(tmin * prcp)
+    )
+
+```
+
 
