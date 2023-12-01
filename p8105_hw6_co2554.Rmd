@@ -226,9 +226,27 @@ weather_iter |>
   group_by(quantity) |> 
   summarize(
     ci_LL = quantile(estimate, 0.025, na.rm = TRUE),
-    ci_UL = quantile(estimate, 0.975, na.rm = TRUE))
+    ci_UL = quantile(estimate, 0.975, na.rm = TRUE)) |> 
+  knitr::kable(digits = 4)
 ```
 
 
-
 ### Problem 3
+
+The goal of this problem is to understand the effects of several variables from birth-data on a child's birth weight. First, let's load and clean the data. 
+```{r}
+bw =
+  read_csv("data/birthweight.csv") |> 
+  janitor::clean_names() |> 
+  mutate(
+    babysex = as.factor(babysex)
+  )
+  
+```
+
+Let's create a linear regression model for this data. 
+
+```{r}
+model_birth = lm(bwt ~ babysex + gaweeks + fincome + wtgain, data = bw)
+```
+
