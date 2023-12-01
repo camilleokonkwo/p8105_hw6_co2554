@@ -217,7 +217,7 @@ The distribution of r^2 and log(β̂_1∗β̂_2) are approximately normal.
 With the 5000 bootstrap estimates, let's create a 95% Confidence Interval for r^2 and  log(β̂_1∗β̂_2). 
 ```{r weather_iter}
 weather_iter |> 
-  select(r.squared,log_coefficient) |> 
+  select(r.squared, log_coefficient) |> 
   pivot_longer(
     cols = c(r.squared, log_coefficient),
     names_to = "quantity", 
