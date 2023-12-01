@@ -32,7 +32,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 Set seed for reproducibility.
 
-```{r}
+```{r seed}
 set.seed(12345)
 ```
 
@@ -41,7 +41,7 @@ set.seed(12345)
 
 In the data cleaning code below we create a `city_state` variable, change `victim_age` to numeric, modifiy victim_race to have categories (white and non-white), with white as the reference category, and create a `resolution` variable indicating whether the homicide is solved. Lastly, we filtered out the following cities: Tulsa, AL; Dallas, TX; Phoenix, AZ; and Kansas City, MO; and we retained only the variables `city_state`, `resolution`, `victim_age`, `victim_sex`, and `victim_race`.
 
-```{r}
+```{r homicide_df}
 homicide_df = 
   read_csv("data/homicide-data.csv", na = c("", "NA", "Unknown")) |> 
   mutate(
@@ -59,7 +59,7 @@ homicide_df =
 
 Next we fit a logistic regression model using only data from Baltimore, MD. We model `resolved` as the outcome and `victim_age`, `victim_sex`, and `victim_race` as predictors. We save the output as `baltimore_glm` so that we can apply `broom::tidy` to this object and obtain the estimate and confidence interval of the adjusted odds ratio for solving homicides comparing non-white victims to white victims.
 
-```{r}
+```{r baltimore_df}
 baltimore_glm = 
   filter(homicide_df, city_state == "Baltimore, MD") |> 
   glm(resolution ~ victim_age + victim_sex + victim_race, family = binomial(), data = _)
@@ -77,7 +77,7 @@ baltimore_glm |>
 
 Below, by incorporating `nest()`, `map()`, and `unnest()` into the preceding Baltimore-specific code, we fit a model for each of the cities, and extract the adjusted odds ratio (and CI) for solving homicides comparing non-white victims to white victims. We show the first 5 rows of the resulting dataframe of model results.
 
-```{r}
+```{r model_results_1}
 model_results = 
   homicide_df |> 
   nest(data = -city_state) |> 
@@ -101,7 +101,7 @@ model_results |>
 
 Below we generate a plot of the estimated ORs and CIs for each city, ordered by magnitude of the OR from smallest to largest. From this plot we see that most cities have odds ratios that are smaller than 1, suggesting that crimes with male victims have smaller odds of resolution compared to crimes with female victims after adjusting for victim age and race. This disparity is strongest in New York. In roughly half of these cities, confidence intervals are narrow and do not contain 1, suggesting a significant difference in resolution rates by sex after adjustment for victim age and race.
 
-```{r}
+```{r model_results_2}
 model_results |> 
   mutate(city_state = fct_reorder(city_state, OR)) |> 
   ggplot(aes(x = city_state, y = OR)) + 
@@ -161,7 +161,7 @@ coefficients =
 It's important to point out that since β̂_prcp is negative, the log product of the coefficients will produce an Nan.
 
 Using bootstrap sampling, we'll produce 5000 estimates of r^2 and log(β̂_1∗β̂_2). The most efficient way to do this would be utilizing a function, so let's go ahead and do that. 
-```{r}
+```{r weather_boot}
 weather_boot = function(df) {
   
   data = sample_frac(df, replace = TRUE)
@@ -185,12 +185,16 @@ r_squared =
     ) |> 
   select(log_coefficient)
 
+  tibble(
+    r_squared, coefficients
+  )
 }
 # bootstrap 5000 times
 
 weather_iter =
-  tibble(strap_number = 1:50) |> #kept temporarily at 50
-  mutate(strap_sample = map(strap_number, ~weather_boot(weather_df))) |> 
+  tibble(strap_number = 1:1000) |> #kept temporarily at 1000
+  mutate(
+    strap_sample = map(strap_number, \(i) weather_boot(weather_df))) |> 
   unnest(strap_sample)
 ```
 
@@ -211,11 +215,11 @@ weather_iter |>
 The distribution of r^2 and log(β̂_1∗β̂_2) are approximately normal. 
 
 With the 5000 bootstrap estimates, let's create a 95% Confidence Interval for r^2 and  log(β̂_1∗β̂_2). 
-```{r}
+```{r weather_iter}
 weather_iter |> 
-  select(r.squared,log) |> 
+  select(r.squared,log_coefficient) |> 
   pivot_longer(
-    cols = c(r.squared, log),
+    cols = c(r.squared, log_coefficient),
     names_to = "quantity", 
     values_to = "estimate"
   ) |> 
