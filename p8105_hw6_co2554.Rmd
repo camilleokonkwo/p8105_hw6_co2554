@@ -1,5 +1,5 @@
 ---
-title: "p8105_hw6_co2554"
+title: "Homework 6"
 author: "Camille Okonkwo"
 output: github_document
 ---
@@ -39,8 +39,7 @@ set.seed(12345)
 
 ###  Problem 1
 
-In the data cleaning code below we create a `city_state` variable,
-change `victim_age` to numeric, modifiy victim_race to have categories (white and non-white), with white as the reference category, and create a `resolution` variable indicating whether the homicide is solved. Lastly, we filtered out the following cities: Tulsa, AL; Dallas, TX; Phoenix, AZ; and Kansas City, MO; and we retained only the variables `city_state`, `resolution`, `victim_age`, `victim_sex`, and `victim_race`.
+In the data cleaning code below we create a `city_state` variable, change `victim_age` to numeric, modifiy victim_race to have categories (white and non-white), with white as the reference category, and create a `resolution` variable indicating whether the homicide is solved. Lastly, we filtered out the following cities: Tulsa, AL; Dallas, TX; Phoenix, AZ; and Kansas City, MO; and we retained only the variables `city_state`, `resolution`, `victim_age`, `victim_sex`, and `victim_race`.
 
 ```{r}
 homicide_df = 
@@ -76,11 +75,7 @@ baltimore_glm |>
   knitr::kable(digits = 3)
 ```
 
-Below, by incorporating `nest()`, `map()`, and `unnest()` into the
-preceding Baltimore-specific code, we fit a model for each of the
-cities, and extract the adjusted odds ratio (and CI) for solving
-homicides comparing non-white victims to white victims. We show the
-first 5 rows of the resulting dataframe of model results.
+Below, by incorporating `nest()`, `map()`, and `unnest()` into the preceding Baltimore-specific code, we fit a model for each of the cities, and extract the adjusted odds ratio (and CI) for solving homicides comparing non-white victims to white victims. We show the first 5 rows of the resulting dataframe of model results.
 
 ```{r}
 model_results = 
@@ -131,7 +126,6 @@ weather_df =
     tmin = tmin / 10,
     tmax = tmax / 10) |>
   select(name, id, everything())
-
 ```
 
 We'll be looking at the distributions of these two quantities estimated from the weather_df data: r^2 and log(β̂ 1∗β̂ 2). 
@@ -139,7 +133,11 @@ We'll be looking at the distributions of these two quantities estimated from the
 Lets create a simple linear regression with `tmax` as the response and  `tmin` and `prcp` as predictors. 
 ```{r model}
 model = lm(tmax ~ tmin + prcp, data = weather_df)
+```
 
+
+We're interested in the distribution of the quantities r^2 and log(β̂_1∗β̂_2) from weather_df. Let's extract r^2 and the beta_1 & beta_2 coefficients. 
+```{r extract}
 r_squared =
   model |> 
   broom::glance() |> 
@@ -156,8 +154,77 @@ coefficients =
   ) |> 
   mutate(
     log_coefficient = log(tmin * prcp)
-    )
-
+    ) |> 
+  select(log_coefficient)
 ```
+
+It's important to point out that since β̂_prcp is negative, the log product of the coefficients will produce an Nan.
+
+Using bootstrap sampling, we'll produce 5000 estimates of r^2 and log(β̂_1∗β̂_2). The most efficient way to do this would be utilizing a function, so let's go ahead and do that. 
+```{r}
+weather_boot = function(df) {
+  
+  data = sample_frac(df, replace = TRUE)
+  
+r_squared =
+    lm(tmax ~ tmin + prcp, data = data) |>
+    broom::glance() |>
+    select(r.squared)
+  
+  coefficients =
+  model |> 
+  broom::tidy() |>
+  filter(term %in% c("tmin", "prcp")) |>
+  select(term, estimate) |>
+  pivot_wider(
+    names_from = term,
+    values_from = estimate
+  ) |> 
+  mutate(
+    log_coefficient = log(tmin * prcp)
+    ) |> 
+  select(log_coefficient)
+
+}
+# bootstrap 5000 times
+
+weather_iter =
+  tibble(strap_number = 1:50) |> #kept temporarily at 50
+  mutate(strap_sample = map(strap_number, ~weather_boot(weather_df))) |> 
+  unnest(strap_sample)
+```
+
+Now, we can plot the distribution r^2 and log(β̂_1∗β̂_2). 
+```{r plots}
+
+# distribution of r squared 
+weather_iter |> 
+  ggplot(aes(x = r.squared)) + 
+  geom_density()
+
+#distribution of log coefficients
+weather_iter |> 
+  ggplot(aes(x = log_coefficient)) +
+  geom_density()
+```
+
+The distribution of r^2 and log(β̂_1∗β̂_2) are approximately normal. 
+
+With the 5000 bootstrap estimates, let's create a 95% Confidence Interval for r^2 and  log(β̂_1∗β̂_2). 
+```{r}
+weather_iter |> 
+  select(r.squared,log) |> 
+  pivot_longer(
+    cols = c(r.squared, log),
+    names_to = "quantity", 
+    values_to = "estimate"
+  ) |> 
+  group_by(quantity) |> 
+  summarize(
+    ci_LL = quantile(estimate, 0.025, na.rm = TRUE),
+    ci_UL = quantile(estimate, 0.975, na.rm = TRUE))
+```
+
+
 
 
