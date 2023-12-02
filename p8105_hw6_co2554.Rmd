@@ -11,13 +11,12 @@ library(modelr)
 library(mgcv)
 
 knitr::opts_chunk$set(
-  echo = TRUE, 
-  warning = FALSE,
-  fig.width = 6, 
-  fig.asp = .6, 
-  out.width = "90%"
-  )
-
+	echo = TRUE,
+	fig.asp = 0.6,
+	fig.width = 6,
+	warning = FALSE,
+	out.width = "90%"
+)
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
 
 options(
@@ -192,7 +191,7 @@ r_squared =
 # bootstrap 5000 times
 
 weather_iter =
-  tibble(strap_number = 1:1000) |> #kept temporarily at 1000
+  tibble(strap_number = 1:5000) |> 
   mutate(
     strap_sample = map(strap_number, \(i) weather_boot(weather_df))) |> 
   unnest(strap_sample)
@@ -212,6 +211,8 @@ weather_iter |>
   geom_density()
 ```
 
+Out of 5000 values of log(β1*β2), ____ were removed from the analysis due to "N/A" values. 
+
 The distribution of r^2 and log(β̂_1∗β̂_2) are approximately normal. 
 
 With the 5000 bootstrap estimates, let's create a 95% Confidence Interval for r^2 and  log(β̂_1∗β̂_2). 
@@ -230,23 +231,64 @@ weather_iter |>
   knitr::kable(digits = 4)
 ```
 
+For r^2, the 95% Confidence Limit is (0.8885, 0.9407). The log coefficients confidence limit was not able to be computed due to the Nan values. 
 
 ### Problem 3
 
 The goal of this problem is to understand the effects of several variables from birth-data on a child's birth weight. First, let's load and clean the data. 
-```{r}
+```{r bw}
 bw =
   read_csv("data/birthweight.csv") |> 
   janitor::clean_names() |> 
   mutate(
-    babysex = as.factor(babysex)
+    babysex = as.factor(babysex), 
+    frace = as.factor(frace), 
+    malform = as.factor(malform), 
+    mrace = as.factor(mrace)
   )
   
 ```
 
 Let's create a linear regression model for this data. 
 
-```{r}
-model_birth = lm(bwt ~ babysex + gaweeks + fincome + wtgain, data = bw)
+```{r model_birth}
+model_birth =
+  bw |> 
+  lm(bwt ~ babysex + blength + gaweeks + fincome + wtgain, data = _)
 ```
+
+I want to test if the sex of a child (`babysex`), the length of the child at birth (`blength`), the gestational age in weeks (`gaweeks`), family monthly income (`fincome`), and mother's weight gain (`wtgain`) are significant predictors of a child's birth weight. There is sound evidence that males are born at a higher weight than female children, and longer babies result in higher weighing babies. Older gestational age makes sense to contribute to higher weighing babies, as well as higher family incomes and higher amounts of weight gained by the mother carrying the child. 
+
+Now, I will plot model residuals against predicted values. 
+```{r residual_predicted}
+bw |> 
+  modelr::add_predictions(model_birth) |> 
+  modelr::add_residuals(model_birth) |> 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() + 
+  labs(title = "Residuals vs. Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") 
+```
+
+Let's compare the model I made to our two given models using `gather_predictions`.
+```{r compare}
+model_comp1= 
+  bw |> 
+  lm(bwt ~ blength + gaweeks, data = _)
+
+model_comp2=
+  bw |> 
+  lm(bwt ~ babysex * bhead * blength, data = _)
+
+bw |> 
+  gather_predictions(model_birth, model_comp1, model_comp2) |> 
+  mutate(model = fct_inorder(model)) |> 
+  ggplot(aes(x = blength, y = bwt)) + 
+  geom_point(alpha = .5) +
+  geom_line(aes(y = pred), color = "red") + 
+  facet_grid(~model)
+
+```
+
 
