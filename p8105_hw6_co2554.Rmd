@@ -110,7 +110,7 @@ model_results |>
 
 ### Problem 2
 
-Downloading the Central Park weather data
+Let's download NOAA's Central Park weather data.
 
 ```{r weather}
 weather_df = 
@@ -139,6 +139,7 @@ We're interested in the distribution of the quantities r^2 and log(β̂_1∗β̂
 
 
 Using bootstrap sampling, we'll produce 5000 estimates of r^2 and log(β̂_1∗β̂_2). The most efficient way to do this would be utilizing a function, so let's go ahead and do that. 
+
 ```{r weather_boot}
 weather_boot = function(df) {
   
@@ -192,9 +193,9 @@ weather_iter |>
   geom_density()
 ```
 
-Out of 5000 values of log(β1*β2), 347  were removed from the analysis due to "N/A" values. 
+Out of 5000 values of log(β1*β2), 3361  were removed from the analysis due to "N/A" values. 
 
-The distribution of r^2 and log(β̂_1∗β̂_2) are approximately normal. 
+The distribution of r^2 is approximately normal, and log(β̂_1∗β̂_2)'s distribution is left-skewed. 
 
 With the 5000 bootstrap estimates, let's create a 95% Confidence Interval for r^2 and  log(β̂_1∗β̂_2). 
 ```{r weather_iter}
@@ -212,7 +213,7 @@ weather_iter |>
   knitr::kable(digits = 4)
 ```
 
-For r^2, the 95% Confidence Limit is (0.8885, 0.9407). The log coefficients confidence limit was not able to be computed due to the Nan values. 
+For r^2, the 95% Confidence Limit is (0.8885, 0.9407). The log(β1*β2) 95% Confidence Limit is (-8.9816, -4.6017).
 
 ### Problem 3
 
